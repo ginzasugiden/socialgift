@@ -1,6 +1,3 @@
-# シークレット設定（絶対にコミットしない）
-config.js
-
 # OS
 .DS_Store
 Thumbs.db
