@@ -3,26 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ソーシャルギフト設定マネージャー</title>
+<title>ソーシャルギフト設定侍</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
   :root {
-    --bg: #0f1117;
-    --surface: #1a1d27;
-    --surface-hover: #222838;
-    --border: #2e323e;
-    --border-focus: #5b7fff;
-    --text: #e2e4e9;
-    --text-muted: #7a7f8e;
-    --accent: #5b7fff;
-    --accent-glow: rgba(91,127,255,0.25);
-    --success: #4ade80;
-    --success-bg: rgba(74,222,128,0.12);
-    --error: #f87171;
-    --error-bg: rgba(248,113,113,0.12);
-    --warning: #fb923c;
-    --warning-bg: rgba(251,146,60,0.12);
+    --bg: #fdf2f8;
+    --surface: #ffffff;
+    --surface-hover: #fce4ec;
+    --border: #f9a8d4;
+    --border-focus: #db2777;
+    --text: #4a1942;
+    --text-muted: #9d6b8a;
+    --accent: #db2777;
+    --accent-glow: rgba(219,39,119,0.18);
+    --success: #16a34a;
+    --success-bg: rgba(22,163,74,0.1);
+    --error: #dc2626;
+    --error-bg: rgba(220,38,38,0.08);
+    --warning: #ea580c;
+    --warning-bg: rgba(234,88,12,0.08);
     --mono: 'JetBrains Mono', monospace;
     --sans: 'Noto Sans JP', sans-serif;
   }
@@ -52,7 +52,7 @@
   }
   .header-icon {
     width: 36px; height: 36px;
-    background: linear-gradient(135deg, var(--accent), #8b5cf6);
+    background: linear-gradient(135deg, #db2777, #f472b6);
     border-radius: 10px;
     display: flex; align-items: center; justify-content: center;
     font-size: 18px;
@@ -151,7 +151,7 @@
   .user-avatar {
     width: 34px; height: 34px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--success), #16a34a);
+    background: linear-gradient(135deg, #db2777, #f472b6);
     display: flex; align-items: center; justify-content: center;
     font-size: 15px;
     flex-shrink: 0;
@@ -235,9 +235,9 @@
     align-items: center;
     gap: 6px;
   }
-  .btn:hover { background: #4a6ee0; }
+  .btn:hover { background: #be185d; }
   .btn:active { transform: scale(0.97); }
-  .btn:disabled { background: #333; color: #666; cursor: not-allowed; transform: none; }
+  .btn:disabled { background: #e5e7eb; color: #9ca3af; cursor: not-allowed; transform: none; }
 
   .btn-ghost {
     background: transparent;
@@ -305,7 +305,7 @@
   .toggle-slider {
     position: absolute;
     inset: 0;
-    background: #2e323e;
+    background: #e9d5e0;
     border-radius: 13px;
     cursor: pointer;
     transition: background .25s;
@@ -319,9 +319,9 @@
     border-radius: 50%;
     transition: transform .25s;
   }
-  .toggle-wrap input:checked + .toggle-slider { background: var(--success); }
+  .toggle-wrap input:checked + .toggle-slider { background: var(--accent); }
   .toggle-wrap input:checked + .toggle-slider::before { transform: translateX(20px); }
-  .toggle-wrap input:focus + .toggle-slider { box-shadow: 0 0 0 3px rgba(74,222,128,0.3); }
+  .toggle-wrap input:focus + .toggle-slider { box-shadow: 0 0 0 3px var(--accent-glow); }
 
   /* Item info */
   .item-info { flex: 1; min-width: 0; }
@@ -350,15 +350,15 @@
     white-space: nowrap;
     flex-shrink: 0;
   }
-  .badge-on { background: var(--success-bg); color: var(--success); }
-  .badge-off { background: rgba(122,127,142,0.15); color: var(--text-muted); }
+  .badge-on { background: var(--accent-glow); color: var(--accent); }
+  .badge-off { background: rgba(157,107,138,0.1); color: var(--text-muted); }
   .badge-pending { background: var(--warning-bg); color: var(--warning); }
 
   /* ─── Action Bar (fixed bottom) ─── */
   .action-bar {
     position: fixed;
     bottom: 0; left: 0; right: 0;
-    background: rgba(26,29,39,0.92);
+    background: rgba(253,242,248,0.92);
     backdrop-filter: blur(12px);
     border-top: 1px solid var(--border);
     padding: 14px 24px;
@@ -407,13 +407,13 @@
   }
   .log-entry {
     padding: 4px 0;
-    border-bottom: 1px solid rgba(46,50,62,0.5);
+    border-bottom: 1px solid rgba(219,39,119,0.1);
     display: flex;
     gap: 10px;
     align-items: flex-start;
   }
   .log-entry:last-child { border-bottom: none; }
-  .log-time { color: #444; flex-shrink: 0; }
+  .log-time { color: #9d6b8a; flex-shrink: 0; }
   .log-ok { color: var(--success); }
   .log-err { color: var(--error); }
   .log-info { color: var(--accent); }
@@ -448,7 +448,7 @@
     padding: 12px 18px;
     font-size: 13px;
     color: var(--text);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    box-shadow: 0 8px 32px rgba(219,39,119,0.12);
     z-index: 300;
     transform: translateX(calc(100% + 40px));
     transition: transform .35s cubic-bezier(.22,1,.36,1);
@@ -467,9 +467,9 @@
 
 <!-- Header -->
 <div class="header">
-  <div class="header-icon">🎁</div>
+  <div class="header-icon">🥷</div>
   <div>
-    <h1>ソーシャルギフト設定マネージャー</h1>
+    <h1>ソーシャルギフト設定侍</h1>
     <div class="subtitle">Rakuten ItemAPI 2.0 — features.socialGiftFlag</div>
   </div>
 </div>
