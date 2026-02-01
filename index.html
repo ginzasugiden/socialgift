@@ -76,34 +76,36 @@
   }
 
   /* ─── Credentials Panel ─── */
-  .cred-panel {
+  /* ─── Auth Panel ─── */
+  .auth-panel {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 20px 22px;
     margin-bottom: 20px;
+    transition: border-color .3s;
   }
-  .cred-panel summary {
+  .auth-panel.authed { border-color: var(--success); }
+
+  /* ── Not logged in: login form ── */
+  .login-form { display: block; }
+  .login-form .login-title {
     font-size: 13px;
     font-weight: 600;
     color: var(--text-muted);
-    cursor: pointer;
-    user-select: none;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
     display: flex;
     align-items: center;
     gap: 8px;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
   }
-  .cred-panel summary:hover { color: var(--text); }
-  .cred-panel[open] summary { color: var(--accent); }
-  .cred-fields {
+  .login-fields {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
-    margin-top: 16px;
   }
-  .cred-fields label {
+  .login-fields label {
     font-size: 11px;
     color: var(--text-muted);
     text-transform: uppercase;
@@ -111,7 +113,7 @@
     margin-bottom: 4px;
     display: block;
   }
-  .cred-fields input {
+  .login-fields input {
     width: 100%;
     background: var(--bg);
     border: 1px solid var(--border);
@@ -123,7 +125,64 @@
     outline: none;
     transition: border-color .2s;
   }
-  .cred-fields input:focus { border-color: var(--border-focus); }
+  .login-fields input:focus { border-color: var(--border-focus); }
+  .login-fields input.err { border-color: var(--error); }
+  .login-actions {
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .login-error {
+    font-size: 12px;
+    color: var(--error);
+    margin-top: 8px;
+    min-height: 16px;
+    font-family: var(--mono);
+  }
+
+  /* ── Logged in: user info bar ── */
+  .user-info { display: none; }
+  .user-info-inner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .user-avatar {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--success), #16a34a);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+  .user-details { flex: 1; min-width: 0; }
+  .user-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .user-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    margin-top: 1px;
+  }
+  .user-meta .expiry-ok { color: var(--success); }
+  .user-meta .expiry-warn { color: var(--warning); }
+  .btn-logout {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 7px;
+    padding: 5px 12px;
+    font-size: 11px;
+    font-family: var(--sans);
+    cursor: pointer;
+    transition: all .2s;
+    flex-shrink: 0;
+  }
+  .btn-logout:hover { border-color: var(--error); color: var(--error); }
 
   /* ─── Search Bar ─── */
   .search-row {
@@ -418,20 +477,43 @@
 <!-- Main -->
 <div class="container">
 
-  <!-- Credentials -->
-  <details class="cred-panel" id="credPanel">
-    <summary>🔐 &nbsp;認証情報</summary>
-    <div class="cred-fields">
-      <div>
-        <label>Service Secret</label>
-        <input type="password" id="inputSecret" placeholder="serviceSecret">
+  <!-- Auth Panel -->
+  <div class="auth-panel" id="authPanel">
+
+    <!-- ── ログイン前 ── -->
+    <div class="login-form" id="loginForm">
+      <div class="login-title">🔐 &nbsp;ログイン</div>
+      <div class="login-fields">
+        <div>
+          <label>ID</label>
+          <input type="text"     id="inputId" placeholder="ユーザーID" autocomplete="off">
+        </div>
+        <div>
+          <label>PW</label>
+          <input type="password" id="inputPw" placeholder="パスワード" autocomplete="off"
+                 onkeydown="if(event.key==='Enter') doLogin()">
+        </div>
       </div>
-      <div>
-        <label>License Key</label>
-        <input type="password" id="inputLicense" placeholder="licenseKey">
+      <div class="login-actions">
+        <button class="btn btn-sm" onclick="doLogin()">ログイン</button>
+        <span id="loginSpinner" style="display:none;"><span class="spinner"></span></span>
+      </div>
+      <div class="login-error" id="loginError"></div>
+    </div>
+
+    <!-- ── ログイン済み ── -->
+    <div class="user-info" id="userInfo">
+      <div class="user-info-inner">
+        <div class="user-avatar">✓</div>
+        <div class="user-details">
+          <div class="user-name" id="userName">−</div>
+          <div class="user-meta" id="userMeta">−</div>
+        </div>
+        <button class="btn-logout" onclick="doLogout()">ログアウト</button>
       </div>
     </div>
-  </details>
+
+  </div>
 
   <!-- Search -->
   <div class="search-row">
@@ -493,18 +575,129 @@ let items = [];           // { manageNumber, title, original, current }
 let logs = [];
 
 // ═══════════════════════════════════════════════════
-// AUTH
+// CONFIG
 // ═══════════════════════════════════════════════════
+// ← デプロイした GAS Web App の URL を入れてください
+const GAS_AUTH_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
+
+// ═══════════════════════════════════════════════════
+// AUTH STATE
+// ═══════════════════════════════════════════════════
+let authState = {
+  loggedIn:      false,
+  licenseKey:    '',
+  serviceSecret: '',
+  sname:         '',
+  expiry:        ''
+};
+
+// ── ログイン ──
+async function doLogin() {
+  const id = document.getElementById('inputId').value.trim();
+  const pw = document.getElementById('inputPw').value.trim();
+  const errEl = document.getElementById('loginError');
+  errEl.textContent = '';
+  document.getElementById('inputId').classList.remove('err');
+  document.getElementById('inputPw').classList.remove('err');
+
+  if (!id || !pw) {
+    errEl.textContent = 'IDとPWを入力してください';
+    if (!id) document.getElementById('inputId').classList.add('err');
+    if (!pw) document.getElementById('inputPw').classList.add('err');
+    return;
+  }
+
+  // スピナー
+  document.getElementById('loginSpinner').style.display = 'inline';
+  document.getElementById('btnLogin') && (document.querySelector('.login-actions .btn').disabled = true);
+
+  try {
+    const res  = await fetch(GAS_AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ id, pw })
+    });
+    const data = await res.json();
+
+    if (data.ok) {
+      // 認証成功 → 状態を保持
+      authState = {
+        loggedIn:      true,
+        licenseKey:    data.licenseKey,
+        serviceSecret: data.serviceSecret,
+        sname:         data.sname,
+        expiry:        data.expiry
+      };
+      renderAuthUI();
+      addLog('info', `ログイン成功: ${data.sname}`);
+    } else {
+      errEl.textContent = data.error || '認証に失敗しました';
+      document.getElementById('inputPw').classList.add('err');
+      document.getElementById('inputPw').value = '';
+      document.getElementById('inputPw').focus();
+    }
+  } catch (e) {
+    errEl.textContent = 'サーバーとの通信に失敗しました';
+  }
+
+  // スピナーOFF
+  document.getElementById('loginSpinner').style.display = 'none';
+  document.querySelector('.login-actions .btn').disabled = false;
+}
+
+// ── ログアウト ──
+function doLogout() {
+  authState = { loggedIn: false, licenseKey: '', serviceSecret: '', sname: '', expiry: '' };
+  document.getElementById('inputId').value = '';
+  document.getElementById('inputPw').value = '';
+  document.getElementById('loginError').textContent = '';
+  document.getElementById('authPanel').classList.remove('authed');
+  renderAuthUI();
+  // 商品一覧もリセット
+  items = [];
+  document.getElementById('itemList').innerHTML =
+    '<div class="state-msg"><div class="emoji">🔍</div>検索して商品を表示してください</div>';
+  document.getElementById('resultsHeader').style.display = 'none';
+  updateActionBar();
+}
+
+// ── UI 切り替え ──
+function renderAuthUI() {
+  const loginForm = document.getElementById('loginForm');
+  const userInfo  = document.getElementById('userInfo');
+  const panel     = document.getElementById('authPanel');
+
+  if (authState.loggedIn) {
+    loginForm.style.display = 'none';
+    userInfo.style.display  = 'block';
+    panel.classList.add('authed');
+
+    document.getElementById('userName').textContent = authState.sname || 'Unknown';
+
+    // expiry 表示
+    let metaHtml = '';
+    if (authState.expiry) {
+      const exp   = new Date(authState.expiry);
+      const now   = new Date();
+      const days  = Math.ceil((exp - now) / (1000*60*60*24));
+      const cls   = days <= 7 ? 'expiry-warn' : 'expiry-ok';
+      const label = days <= 0 ? '期限切れ' : `残り ${days} 日`;
+      metaHtml = `期限: <span class="${cls}">${label}</span>`;
+    }
+    document.getElementById('userMeta').innerHTML = metaHtml;
+  } else {
+    loginForm.style.display = 'block';
+    userInfo.style.display  = 'none';
+  }
+}
+
+// ── 認証ヘッダー取得（他の関数から呼ぶ） ──
 function getAuth() {
-  const secret  = document.getElementById('inputSecret').value.trim();
-  const license = document.getElementById('inputLicense').value.trim();
-  if (!secret || !license) {
-    showToast('認証情報が必要です', 'Service Secret と License Key を入力してください', 'error');
-    document.getElementById('credPanel').open = true;
+  if (!authState.loggedIn) {
+    showToast('ログインが必要です', 'まず認証パネルでログインしてください', 'error');
     return null;
   }
-  // Base64エンコード
-  return 'ESA ' + btoa(secret + ':' + license);
+  return 'ESA ' + btoa(authState.serviceSecret + ':' + authState.licenseKey);
 }
 
 // ═══════════════════════════════════════════════════
