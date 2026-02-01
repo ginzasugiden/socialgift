@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ソーシャルギフト設定マネージャー</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface-hover: #222838;
+    --border: #2e323e;
+    --border-focus: #5b7fff;
+    --text: #e2e4e9;
+    --text-muted: #7a7f8e;
+    --accent: #5b7fff;
+    --accent-glow: rgba(91,127,255,0.25);
+    --success: #4ade80;
+    --success-bg: rgba(74,222,128,0.12);
+    --error: #f87171;
+    --error-bg: rgba(248,113,113,0.12);
+    --warning: #fb923c;
+    --warning-bg: rgba(251,146,60,0.12);
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Noto Sans JP', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ─── Header ─── */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 28px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), #8b5cf6);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .header h1 {
+    font-size: 16px; font-weight: 600;
+    color: var(--text);
+  }
+  .header .subtitle {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    margin-top: 1px;
+  }
+
+  /* ─── Main Layout ─── */
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 28px 24px;
+  }
+
+  /* ─── Credentials Panel ─── */
+  .cred-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 22px;
+    margin-bottom: 20px;
+  }
+  .cred-panel summary {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .cred-panel summary:hover { color: var(--text); }
+  .cred-panel[open] summary { color: var(--accent); }
+  .cred-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .cred-fields label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 4px;
+    display: block;
+  }
+  .cred-fields input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .cred-fields input:focus { border-color: var(--border-focus); }
+
+  /* ─── Search Bar ─── */
+  .search-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .search-wrap {
+    flex: 1;
+    position: relative;
+  }
+  .search-wrap .icon-search {
+    position: absolute; left: 13px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 16px;
+    pointer-events: none;
+  }
+  .search-wrap input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 14px 11px 40px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .search-wrap input:focus {
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+  .search-wrap input::placeholder { color: var(--text-muted); }
+
+  .btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 11px 22px;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .2s, transform .1s;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:hover { background: #4a6ee0; }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled { background: #333; color: #666; cursor: not-allowed; transform: none; }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { background: var(--surface-hover); color: var(--text); border-color: var(--border); }
+
+  /* ─── Results Header ─── */
+  .results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    min-height: 32px;
+  }
+  .results-count {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+  }
+  .results-count span { color: var(--accent); font-weight: 600; }
+  .batch-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .btn-sm {
+    padding: 6px 14px;
+    font-size: 12px;
+    border-radius: 7px;
+  }
+
+  /* ─── Item List ─── */
+  .item-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .item-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: border-color .2s, background .2s;
+    animation: slideIn .25s ease both;
+  }
+  .item-card:hover { border-color: var(--border-focus); background: var(--surface-hover); }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Checkbox Toggle */
+  .toggle-wrap {
+    position: relative;
+    width: 46px; height: 26px;
+    flex-shrink: 0;
+  }
+  .toggle-wrap input {
+    opacity: 0; width: 0; height: 0;
+  }
+  .toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: #2e323e;
+    border-radius: 13px;
+    cursor: pointer;
+    transition: background .25s;
+  }
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 20px; height: 20px;
+    left: 3px; bottom: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform .25s;
+  }
+  .toggle-wrap input:checked + .toggle-slider { background: var(--success); }
+  .toggle-wrap input:checked + .toggle-slider::before { transform: translateX(20px); }
+  .toggle-wrap input:focus + .toggle-slider { box-shadow: 0 0 0 3px rgba(74,222,128,0.3); }
+
+  /* Item info */
+  .item-info { flex: 1; min-width: 0; }
+  .item-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .item-manage {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    margin-top: 2px;
+  }
+
+  /* Status badge */
+  .badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .badge-on { background: var(--success-bg); color: var(--success); }
+  .badge-off { background: rgba(122,127,142,0.15); color: var(--text-muted); }
+  .badge-pending { background: var(--warning-bg); color: var(--warning); }
+
+  /* ─── Action Bar (fixed bottom) ─── */
+  .action-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(26,29,39,0.92);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    transform: translateY(100%);
+    transition: transform .3s cubic-bezier(.22,1,.36,1);
+    z-index: 200;
+  }
+  .action-bar.visible { transform: translateY(0); }
+  .action-bar .change-info {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .action-bar .change-info strong { color: var(--warning); }
+
+  /* ─── Log Panel ─── */
+  .log-panel {
+    margin-top: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .log-header {
+    padding: 10px 18px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .log-body {
+    padding: 14px 18px;
+    font-family: var(--mono);
+    font-size: 11px;
+    max-height: 200px;
+    overflow-y: auto;
+    color: var(--text-muted);
+  }
+  .log-entry {
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(46,50,62,0.5);
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .log-entry:last-child { border-bottom: none; }
+  .log-time { color: #444; flex-shrink: 0; }
+  .log-ok { color: var(--success); }
+  .log-err { color: var(--error); }
+  .log-info { color: var(--accent); }
+
+  /* ─── Empty / Loading States ─── */
+  .state-msg {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+  .state-msg .emoji { font-size: 32px; margin-bottom: 10px; }
+  .spinner {
+    display: inline-block;
+    width: 18px; height: 18px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .6s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ─── Toast ─── */
+  .toast {
+    position: fixed;
+    top: 24px; right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 13px;
+    color: var(--text);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    z-index: 300;
+    transform: translateX(calc(100% + 40px));
+    transition: transform .35s cubic-bezier(.22,1,.36,1);
+    max-width: 340px;
+  }
+  .toast.show { transform: translateX(0); }
+  .toast.success { border-color: var(--success); }
+  .toast.error { border-color: var(--error); }
+  .toast .toast-title { font-weight: 600; margin-bottom: 2px; }
+  .toast.success .toast-title { color: var(--success); }
+  .toast.error .toast-title { color: var(--error); }
+  .toast .toast-body { color: var(--text-muted); font-size: 12px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-icon">🎁</div>
+  <div>
+    <h1>ソーシャルギフト設定マネージャー</h1>
+    <div class="subtitle">Rakuten ItemAPI 2.0 — features.socialGiftFlag</div>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="container">
+
+  <!-- Credentials -->
+  <details class="cred-panel" id="credPanel">
+    <summary>🔐 &nbsp;認証情報</summary>
+    <div class="cred-fields">
+      <div>
+        <label>Service Secret</label>
+        <input type="password" id="inputSecret" placeholder="serviceSecret">
+      </div>
+      <div>
+        <label>License Key</label>
+        <input type="password" id="inputLicense" placeholder="licenseKey">
+      </div>
+    </div>
+  </details>
+
+  <!-- Search -->
+  <div class="search-row">
+    <div class="search-wrap">
+      <span class="icon-search">🔍</span>
+      <input type="text" id="searchInput"
+             placeholder="商品管理番号を入力（空欄＝全商品一覧）"
+             id="searchInput">
+    </div>
+    <button class="btn" id="btnSearch" onclick="handleSearch()">検索</button>
+  </div>
+
+  <!-- Results -->
+  <div class="results-header" id="resultsHeader" style="display:none;">
+    <div class="results-count">検索結果：<span id="countNum">0</span> 件</div>
+    <div class="batch-actions">
+      <button class="btn btn-ghost btn-sm" onclick="selectAll(true)">全チェック</button>
+      <button class="btn btn-ghost btn-sm" onclick="selectAll(false)">全アンチェック</button>
+    </div>
+  </div>
+
+  <div id="itemList" class="item-list">
+    <div class="state-msg">
+      <div class="emoji">🔍</div>
+      検索して商品を表示してください
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="log-panel" id="logPanel" style="display:none;">
+    <div class="log-header">
+      📋 実行ログ
+      <button class="btn btn-ghost btn-sm" onclick="clearLog()">クリア</button>
+    </div>
+    <div class="log-body" id="logBody"></div>
+  </div>
+</div>
+
+<!-- Action Bar (fixed bottom) -->
+<div class="action-bar" id="actionBar">
+  <div class="change-info">
+    <strong id="changeCount">0</strong> 件の変更があります
+  </div>
+  <button class="btn" id="btnUpdate" onclick="applyChanges()">変更を適用</button>
+  <button class="btn btn-ghost btn-sm" onclick="revertChanges()">元に戻す</button>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <div class="toast-title" id="toastTitle"></div>
+  <div class="toast-body" id="toastBody"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════
+let items = [];           // { manageNumber, title, original, current }
+let logs = [];
+
+// ═══════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════
+function getAuth() {
+  const secret  = document.getElementById('inputSecret').value.trim();
+  const license = document.getElementById('inputLicense').value.trim();
+  if (!secret || !license) {
+    showToast('認証情報が必要です', 'Service Secret と License Key を入力してください', 'error');
+    document.getElementById('credPanel').open = true;
+    return null;
+  }
+  // Base64エンコード
+  return 'ESA ' + btoa(secret + ':' + license);
+}
+
+// ═══════════════════════════════════════════════════
+// API CALLS
+// ═══════════════════════════════════════════════════
+const API_BASE = 'https://api.rms.rakuten.co.jp/es/2.0/items/manage-numbers';
+
+async function apiGet(manageNumber, authHeader) {
+  const res = await fetch(`${API_BASE}/${manageNumber}`, {
+    method: 'GET',
+    headers: { 'Authorization': authHeader }
+  });
+  return res;
+}
+
+async function apiPatch(manageNumber, authHeader, body) {
+  const res = await fetch(`${API_BASE}/${manageNumber}`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': authHeader,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+  return res;
+}
+
+// ═══════════════════════════════════════════════════
+// SEARCH
+// ═══════════════════════════════════════════════════
+async function handleSearch() {
+  const auth = getAuth();
+  if (!auth) return;
+
+  const query = document.getElementById('searchInput').value.trim();
+  const list  = document.getElementById('itemList');
+
+  list.innerHTML = '<div class="state-msg"><span class="spinner"></span> 検索中…</div>';
+  document.getElementById('resultsHeader').style.display = 'none';
+
+  if (query === '') {
+    // 空欄の場合のメッセージ
+    // ※ Rakuten ItemAPI 2.0には「全件取得」エンドポイントがないため、
+    //   複数商品管理番号をカンマ区切りで入力するか、
+    //   GSASのシートから貼り込んでください。
+    list.innerHTML = `
+      <div class="state-msg">
+        <div class="emoji">💡</div>
+        <strong>全商品一覧の取得には管理番号が必要です</strong><br>
+        <span style="font-size:12px; color:var(--text-muted); margin-top:4px; display:inline-block;">
+          楽天 ItemAPI 2.0には「全件取得」エンドポイントがないため、<br>
+          GASのシートから商品管理番号をカンマ区切りで貼り込んでください。<br>
+          例：<code style="color:var(--accent)">item001,item002,item003</code>
+        </span>
+      </div>`;
+    return;
+  }
+
+  // カンマ区切りで複数対応
+  const manageNumbers = query.split(',').map(s => s.trim()).filter(Boolean);
+  items = [];
+
+  for (const mn of manageNumbers) {
+    try {
+      const res = await apiGet(mn, auth);
+      if (res.ok) {
+        const data = await res.json();
+        const flag = data.features?.socialGiftFlag ?? false;
+        items.push({
+          manageNumber: data.manageNumber,
+          title:        data.title || '(商品名なし)',
+          original:     flag,
+          current:      flag
+        });
+        addLog('info', `GET ${mn} → socialGiftFlag: ${flag}`);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        addLog('err', `GET ${mn} → ${res.status} ${err.errors?.[0]?.message || ''}`);
+      }
+    } catch (e) {
+      addLog('err', `GET ${mn} → ネットワークエラー`);
+    }
+  }
+
+  renderList();
+}
+
+// ═══════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════
+function renderList() {
+  const list = document.getElementById('itemList');
+  document.getElementById('resultsHeader').style.display = 'flex';
+  document.getElementById('countNum').textContent = items.length;
+
+  if (items.length === 0) {
+    list.innerHTML = '<div class="state-msg"><div class="emoji">📭</div>該当する商品が見つかりませんでした</div>';
+    return;
+  }
+
+  list.innerHTML = items.map((item, i) => `
+    <div class="item-card" style="animation-delay:${i * 0.04}s">
+      <div class="toggle-wrap">
+        <input type="checkbox" id="chk_${i}" ${item.current ? 'checked' : ''}
+               onchange="toggleItem(${i})">
+        <label class="toggle-slider" for="chk_${i}"></label>
+      </div>
+      <div class="item-info">
+        <div class="item-title">${escHtml(item.title)}</div>
+        <div class="item-manage">${escHtml(item.manageNumber)}</div>
+      </div>
+      <span class="badge ${item.current ? 'badge-on' : 'badge-off'}" id="badge_${i}">
+        ${item.current ? '対応済み' : '未対応'}
+      </span>
+      ${item.current !== item.original
+        ? `<span class="badge badge-pending" id="pending_${i}">変更待ち</span>`
+        : `<span style="width:50px" id="pending_${i}"></span>`}
+    </div>
+  `).join('');
+
+  updateActionBar();
+}
+
+function toggleItem(idx) {
+  items[idx].current = document.getElementById(`chk_${idx}`).checked;
+  // badge update
+  const badge = document.getElementById(`badge_${idx}`);
+  badge.className = 'badge ' + (items[idx].current ? 'badge-on' : 'badge-off');
+  badge.textContent = items[idx].current ? '対応済み' : '未対応';
+  // pending badge
+  const pending = document.getElementById(`pending_${idx}`);
+  if (items[idx].current !== items[idx].original) {
+    pending.className = 'badge badge-pending';
+    pending.textContent = '変更待ち';
+  } else {
+    pending.className = '';
+    pending.textContent = '';
+    pending.style.width = '50px';
+  }
+  updateActionBar();
+}
+
+function selectAll(val) {
+  items.forEach((item, i) => {
+    item.current = val;
+    document.getElementById(`chk_${i}`).checked = val;
+  });
+  renderList();
+}
+
+// ═══════════════════════════════════════════════════
+// ACTION BAR
+// ═══════════════════════════════════════════════════
+function updateActionBar() {
+  const changes = items.filter(it => it.current !== it.original).length;
+  document.getElementById('changeCount').textContent = changes;
+  const bar = document.getElementById('actionBar');
+  bar.classList.toggle('visible', changes > 0);
+}
+
+function revertChanges() {
+  items.forEach(it => { it.current = it.original; });
+  renderList();
+}
+
+// ═══════════════════════════════════════════════════
+// APPLY (PATCH)
+// ═══════════════════════════════════════════════════
+async function applyChanges() {
+  const auth = getAuth();
+  if (!auth) return;
+
+  const toUpdate = items.filter(it => it.current !== it.original);
+  if (toUpdate.length === 0) return;
+
+  const btn = document.getElementById('btnUpdate');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 更新中…';
+
+  let success = 0, fail = 0;
+
+  for (const item of toUpdate) {
+    try {
+      const res = await apiPatch(item.manageNumber, auth, {
+        features: {
+          socialGiftFlag: item.current
+        }
+      });
+
+      if (res.ok || res.status === 204) {
+        item.original = item.current;  // 成功したら元の値を更新
+        success++;
+        addLog('ok', `PATCH ${item.manageNumber} → socialGiftFlag: ${item.current}`);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        fail++;
+        addLog('err', `PATCH ${item.manageNumber} → ${res.status} ${err.errors?.[0]?.message || ''}`);
+      }
+    } catch (e) {
+      fail++;
+      addLog('err', `PATCH ${item.manageNumber} → ネットワークエラー`);
+    }
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '変更を適用';
+  renderList();
+
+  if (fail === 0) {
+    showToast('更新完了', `${success} 件のソーシャルギフト設定が更新されました`, 'success');
+  } else {
+    showToast('一部失敗', `成功: ${success} 件 / 失敗: ${fail} 件。ログを確認してください`, 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// LOG
+// ═══════════════════════════════════════════════════
+function addLog(type, msg) {
+  const now = new Date();
+  const time = now.toLocaleTimeString('ja-JP', { hour12: false });
+  logs.unshift({ type, time, msg });
+  renderLog();
+}
+
+function renderLog() {
+  const panel = document.getElementById('logPanel');
+  const body  = document.getElementById('logBody');
+  panel.style.display = 'block';
+  body.innerHTML = logs.map(l => `
+    <div class="log-entry">
+      <span class="log-time">${l.time}</span>
+      <span class="log-${l.type}">${escHtml(l.msg)}</span>
+    </div>
+  `).join('');
+}
+
+function clearLog() {
+  logs = [];
+  document.getElementById('logPanel').style.display = 'none';
+}
+
+// ═══════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════
+let toastTimer;
+function showToast(title, body, type) {
+  const t = document.getElementById('toast');
+  document.getElementById('toastTitle').textContent = title;
+  document.getElementById('toastBody').textContent = body;
+  t.className = 'toast ' + type;
+  // force reflow
+  void t.offsetWidth;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ═══════════════════════════════════════════════════
+// UTIL
+// ═══════════════════════════════════════════════════
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
