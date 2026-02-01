@@ -7,7 +7,7 @@
 
 const APP_CONFIG = {
   // GAS Web App のデプロイURL
-  GAS_AUTH_URL: 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec',
+  GAS_AUTH_URL: 'https://script.google.com/macros/s/AKfycbxzIr1GBlK706VxP6BXVBQDSbVyQF69rnI2DJvw2yxBP5ByulNdjMPjnVq1nhFXpucAqg/exec',
 
   // アクセストークン（GAS側の ACCESS_TOKEN と同じ値にする）
   ACCESS_TOKEN: 'YOUR_ACCESS_TOKEN_HERE'
