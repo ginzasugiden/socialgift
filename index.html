@@ -693,45 +693,58 @@ function renderAuthUI() {
 }
 
 // ── 認証ヘッダー取得（他の関数から呼ぶ） ──
-function getAuth() {
+/*
+  function getAuth() {
   if (!authState.loggedIn) {
     showToast('ログインが必要です', 'まず認証パネルでログインしてください', 'error');
     return null;
   }
   return 'ESA ' + btoa(authState.serviceSecret + ':' + authState.licenseKey);
 }
-
+*/
+  
 // ═══════════════════════════════════════════════════
 // API CALLS
 // ═══════════════════════════════════════════════════
-const API_BASE = 'https://api.rms.rakuten.co.jp/es/2.0/items/manage-numbers';
+// const API_BASE = 'https://api.rms.rakuten.co.jp/es/2.0/items/manage-numbers';
 
-async function apiGet(manageNumber, authHeader) {
-  const res = await fetch(`${API_BASE}/${manageNumber}`, {
-    method: 'GET',
-    headers: { 'Authorization': authHeader }
-  });
-  return res;
+// ═══════════════════════════════════════════════════
+// API CALLS（GASプロキシ経由）
+// ═══════════════════════════════════════════════════
+
+async function apiGet(manageNumber) {
+  const url = APP_CONFIG.GAS_AUTH_URL
+    + '?token=' + encodeURIComponent(APP_CONFIG.ACCESS_TOKEN)
+    + '&action=get'
+    + '&ss='    + encodeURIComponent(authState.serviceSecret)
+    + '&lk='    + encodeURIComponent(authState.licenseKey)
+    + '&mn='    + encodeURIComponent(manageNumber);
+  
+  const res = await fetch(url);
+  return res.json();
 }
 
-async function apiPatch(manageNumber, authHeader, body) {
-  const res = await fetch(`${API_BASE}/${manageNumber}`, {
-    method: 'PATCH',
-    headers: {
-      'Authorization': authHeader,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(body)
-  });
-  return res;
+async function apiPatch(manageNumber, socialGiftFlag) {
+  const url = APP_CONFIG.GAS_AUTH_URL
+    + '?token=' + encodeURIComponent(APP_CONFIG.ACCESS_TOKEN)
+    + '&action=patch'
+    + '&ss='    + encodeURIComponent(authState.serviceSecret)
+    + '&lk='    + encodeURIComponent(authState.licenseKey)
+    + '&mn='    + encodeURIComponent(manageNumber)
+    + '&sgf='   + (socialGiftFlag ? 'true' : 'false');
+  
+  const res = await fetch(url);
+  return res.json();
 }
 
 // ═══════════════════════════════════════════════════
 // SEARCH
 // ═══════════════════════════════════════════════════
 async function handleSearch() {
-  const auth = getAuth();
-  if (!auth) return;
+  if (!authState.loggedIn) {
+    showToast('ログインが必要です', 'まず認証パネルでログインしてください', 'error');
+    return;
+  }
 
   const query = document.getElementById('searchInput').value.trim();
   const list  = document.getElementById('itemList');
@@ -740,10 +753,6 @@ async function handleSearch() {
   document.getElementById('resultsHeader').style.display = 'none';
 
   if (query === '') {
-    // 空欄の場合のメッセージ
-    // ※ Rakuten ItemAPI 2.0には「全件取得」エンドポイントがないため、
-    //   複数商品管理番号をカンマ区切りで入力するか、
-    //   GSASのシートから貼り込んでください。
     list.innerHTML = `
       <div class="state-msg">
         <div class="emoji">💡</div>
@@ -763,9 +772,10 @@ async function handleSearch() {
 
   for (const mn of manageNumbers) {
     try {
-      const res = await apiGet(mn, auth);
-      if (res.ok) {
-        const data = await res.json();
+      const result = await apiGet(mn);
+      
+      if (result.ok && result.data) {
+        const data = result.data;
         const flag = data.features?.socialGiftFlag ?? false;
         items.push({
           manageNumber: data.manageNumber,
@@ -775,8 +785,8 @@ async function handleSearch() {
         });
         addLog('info', `GET ${mn} → socialGiftFlag: ${flag}`);
       } else {
-        const err = await res.json().catch(() => ({}));
-        addLog('err', `GET ${mn} → ${res.status} ${err.errors?.[0]?.message || ''}`);
+        const errMsg = result.data?.errors?.[0]?.message || result.error || 'エラー';
+        addLog('err', `GET ${mn} → ${result.status || ''} ${errMsg}`);
       }
     } catch (e) {
       addLog('err', `GET ${mn} → ネットワークエラー`);
@@ -868,8 +878,10 @@ function revertChanges() {
 // APPLY (PATCH)
 // ═══════════════════════════════════════════════════
 async function applyChanges() {
-  const auth = getAuth();
-  if (!auth) return;
+  if (!authState.loggedIn) {
+    showToast('ログインが必要です', 'まず認証パネルでログインしてください', 'error');
+    return;
+  }
 
   const toUpdate = items.filter(it => it.current !== it.original);
   if (toUpdate.length === 0) return;
@@ -882,20 +894,16 @@ async function applyChanges() {
 
   for (const item of toUpdate) {
     try {
-      const res = await apiPatch(item.manageNumber, auth, {
-        features: {
-          socialGiftFlag: item.current
-        }
-      });
+      const result = await apiPatch(item.manageNumber, item.current);
 
-      if (res.ok || res.status === 204) {
-        item.original = item.current;  // 成功したら元の値を更新
+      if (result.ok) {
+        item.original = item.current;
         success++;
         addLog('ok', `PATCH ${item.manageNumber} → socialGiftFlag: ${item.current}`);
       } else {
-        const err = await res.json().catch(() => ({}));
+        const errMsg = result.data?.errors?.[0]?.message || result.error || 'エラー';
         fail++;
-        addLog('err', `PATCH ${item.manageNumber} → ${res.status} ${err.errors?.[0]?.message || ''}`);
+        addLog('err', `PATCH ${item.manageNumber} → ${result.status || ''} ${errMsg}`);
       }
     } catch (e) {
       fail++;
