@@ -821,7 +821,7 @@ function renderList() {
         <div class="item-manage">${escHtml(item.manageNumber)}</div>
       </div>
       <span class="badge ${item.current ? 'badge-on' : 'badge-off'}" id="badge_${i}">
-        ${item.current ? '対応済み' : '未対応'}
+        ${item.current ? '対応する' : '対応しない'}
       </span>
       ${item.current !== item.original
         ? `<span class="badge badge-pending" id="pending_${i}">変更待ち</span>`
@@ -837,7 +837,7 @@ function toggleItem(idx) {
   // badge update
   const badge = document.getElementById(`badge_${idx}`);
   badge.className = 'badge ' + (items[idx].current ? 'badge-on' : 'badge-off');
-  badge.textContent = items[idx].current ? '対応済み' : '未対応';
+  badge.textContent = items[idx].current ? '対応する' : '対応しない';
   // pending badge
   const pending = document.getElementById(`pending_${idx}`);
   if (items[idx].current !== items[idx].original) {
