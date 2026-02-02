@@ -462,12 +462,13 @@
   .toast.error .toast-title { color: var(--error); }
   .toast .toast-body { color: var(--text-muted); font-size: 12px; }
 </style>
+<script src="config.js"></script>
 </head>
 <body>
 
 <!-- Header -->
 <div class="header">
-  <div class="header-icon">🎁</div>
+   <div class="header-icon">🎁</div>
   <div>
     <h1>ソーシャルギフト設定侍</h1>
     <div class="subtitle">Rakuten ItemAPI 2.0 — features.socialGiftFlag</div>
@@ -575,10 +576,9 @@ let items = [];           // { manageNumber, title, original, current }
 let logs = [];
 
 // ═══════════════════════════════════════════════════
-// CONFIG
+// CONFIG（config.js から読み込む）
 // ═══════════════════════════════════════════════════
-// ← デプロイした GAS Web App の URL を入れてください
-const GAS_AUTH_URL = 'https://script.google.com/macros/s/AKfycbxzIr1GBlK706VxP6BXVBQDSbVyQF69rnI2DJvw2yxBP5ByulNdjMPjnVq1nhFXpucAqg/exec';
+// GAS_AUTH_URL・ACCESS_TOKEN は config.js の APP_CONFIG で定義
 
 // ═══════════════════════════════════════════════════
 // AUTH STATE
@@ -612,11 +612,11 @@ async function doLogin() {
   document.getElementById('btnLogin') && (document.querySelector('.login-actions .btn').disabled = true);
 
   try {
-    const res  = await fetch(GAS_AUTH_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ id, pw })
-    });
+    const url = APP_CONFIG.GAS_AUTH_URL
+      + '?token=' + encodeURIComponent(APP_CONFIG.ACCESS_TOKEN)
+      + '&id='    + encodeURIComponent(id)
+      + '&pw='    + encodeURIComponent(pw);
+    const res  = await fetch(url);
     const data = await res.json();
 
     if (data.ok) {
