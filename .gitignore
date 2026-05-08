@@ -1,3 +1,9 @@
 # OS
 .DS_Store
 Thumbs.db
+
+# GAS (separately managed, not pushed to GitHub)
+gas/
+
+# clasp credentials (home directory safety net)
+.clasprc.json
