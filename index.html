@@ -522,8 +522,7 @@
     <div class="search-wrap">
       <span class="icon-search">🔍</span>
       <input type="text" id="searchInput"
-             placeholder="商品管理番号を入力（空欄＝全商品一覧）"
-             id="searchInput">
+             placeholder="商品管理番号を入力（空欄＝全商品一覧）">
     </div>
     <button class="btn" id="btnSearch" onclick="handleSearch()">検索</button>
   </div>
@@ -691,22 +690,6 @@ function renderAuthUI() {
     userInfo.style.display  = 'none';
   }
 }
-
-// ── 認証ヘッダー取得（他の関数から呼ぶ） ──
-/*
-  function getAuth() {
-  if (!authState.loggedIn) {
-    showToast('ログインが必要です', 'まず認証パネルでログインしてください', 'error');
-    return null;
-  }
-  return 'ESA ' + btoa(authState.serviceSecret + ':' + authState.licenseKey);
-}
-*/
-  
-// ═══════════════════════════════════════════════════
-// API CALLS
-// ═══════════════════════════════════════════════════
-// const API_BASE = 'https://api.rms.rakuten.co.jp/es/2.0/items/manage-numbers';
 
 // ═══════════════════════════════════════════════════
 // API CALLS（GASプロキシ経由）
