@@ -51,6 +51,19 @@
     top: 0;
     z-index: 100;
   }
+  .dev-badge {
+    margin-left: auto;
+    background: var(--error);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 11px;
+    border-radius: 6px;
+    letter-spacing: 0.6px;
+    font-family: var(--mono);
+    box-shadow: 0 2px 8px rgba(220,38,38,0.35);
+    user-select: none;
+  }
   .header-icon {
     width: 36px; height: 36px;
     background: linear-gradient(135deg, #db2777, #f472b6);
@@ -474,6 +487,7 @@
     <h1>ソーシャルギフト設定侍</h1>
     <div class="subtitle">Rakuten ItemAPI 2.0 — features.socialGiftFlag</div>
   </div>
+  <div class="dev-badge" id="devBadge" style="display:none;">⚠ DEV モード</div>
 </div>
 
 <!-- Main -->
@@ -869,6 +883,11 @@ async function applyChanges() {
   const toUpdate = items.filter(it => it.current !== it.original);
   if (toUpdate.length === 0) return;
 
+  if (APP_CONFIG.MODE === 'dev') {
+    const ok = confirm(`【DEV モード】${toUpdate.length} 件の socialGiftFlag を更新します。\n本番ではなく dev 環境に対する操作であることを確認してください。\n続行しますか？`);
+    if (!ok) return;
+  }
+
   const btn = document.getElementById('btnUpdate');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> 更新中…';
@@ -954,6 +973,20 @@ function showToast(title, body, type) {
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+// ═══════════════════════════════════════════════════
+// DEV MODE INIT
+// ═══════════════════════════════════════════════════
+(function initDevModeUI() {
+  if (APP_CONFIG.MODE !== 'dev') return;
+  document.title = '[DEV] ' + document.title;
+  const favicon = document.querySelector('link[rel="icon"]');
+  if (favicon) {
+    favicon.href = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚧</text></svg>";
+  }
+  const badge = document.getElementById('devBadge');
+  if (badge) badge.style.display = 'inline-block';
+})();
 </script>
 </body>
 </html>
