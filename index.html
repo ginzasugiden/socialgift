@@ -198,6 +198,37 @@
   }
   .btn-logout:hover { border-color: var(--error); color: var(--error); }
 
+  /* ─── Search Mode Tabs ─── */
+  .search-tabs {
+    display: inline-flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 3px;
+    margin-bottom: 10px;
+    gap: 2px;
+  }
+  .search-tab {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 16px;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background .2s, color .2s;
+  }
+  .search-tab.active {
+    background: var(--accent);
+    color: #fff;
+  }
+  .search-tab:hover:not(.active) {
+    background: var(--surface-hover);
+    color: var(--text);
+  }
+
   /* ─── Search Bar ─── */
   .search-row {
     display: flex;
@@ -282,6 +313,19 @@
     padding: 6px 14px;
     font-size: 12px;
     border-radius: 7px;
+  }
+
+  /* ─── Load More ─── */
+  .load-more-wrap {
+    margin-top: 14px;
+    text-align: center;
+    padding-bottom: 8px;
+  }
+  .load-more-info {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    margin-bottom: 8px;
   }
 
   /* ─── Item List ─── */
@@ -532,11 +576,16 @@
   </div>
 
   <!-- Search -->
+  <div class="search-tabs" role="tablist">
+    <button class="search-tab active" id="tabCode"  role="tab" onclick="switchSearchMode('code')">商品コード</button>
+    <button class="search-tab"        id="tabTitle" role="tab" onclick="switchSearchMode('title')">商品名</button>
+  </div>
   <div class="search-row">
     <div class="search-wrap">
       <span class="icon-search">🔍</span>
       <input type="text" id="searchInput"
-             placeholder="商品管理番号を入力（空欄＝全商品一覧）">
+             placeholder="商品管理番号（カンマ区切り、完全一致）"
+             onkeydown="if(event.key==='Enter') handleSearch()">
     </div>
     <button class="btn" id="btnSearch" onclick="handleSearch()">検索</button>
   </div>
@@ -555,6 +604,11 @@
       <div class="emoji">🔍</div>
       検索して商品を表示してください
     </div>
+  </div>
+
+  <div class="load-more-wrap" id="loadMoreWrap" style="display:none;">
+    <div class="load-more-info" id="loadMoreInfo"></div>
+    <button class="btn btn-ghost btn-sm" id="btnLoadMore" onclick="loadMore()">もっと読み込む</button>
   </div>
 
   <!-- Log -->
@@ -587,7 +641,26 @@
 // STATE
 // ═══════════════════════════════════════════════════
 let items = [];           // { manageNumber, title, original, current }
-let logs = [];
+let logs  = [];
+
+// 検索モード ('code' | 'title') と、商品名検索のページング状態
+let searchMode  = 'code';
+let searchState = {
+  mode:     'code',
+  query:    '',
+  offset:   0,
+  numFound: 0,
+  hasMore:  false
+};
+
+// ページサイズは items.bulk-get の上限 50 と揃える。
+const PAGE_SIZE   = 50;
+const BULK_GET_MAX = 50;
+
+// PATCH スロットリング（楽天非公開のレート制限への保守的対応）
+const PATCH_INTERVAL_MS  = 1500;   // 通常時の間隔
+const PATCH_MAX_RETRY    = 3;      // 1リクエストあたりの最大リトライ回数
+const PATCH_BACKOFF_BASE = 5000;   // バックオフ起点 5s（5s, 10s, 20s）
 
 // ═══════════════════════════════════════════════════
 // CONFIG（config.js から読み込む）
@@ -669,9 +742,11 @@ function doLogout() {
   renderAuthUI();
   // 商品一覧もリセット
   items = [];
+  searchState = { mode: searchMode, query: '', offset: 0, numFound: 0, hasMore: false };
   document.getElementById('itemList').innerHTML =
     '<div class="state-msg"><div class="emoji">🔍</div>検索して商品を表示してください</div>';
   document.getElementById('resultsHeader').style.display = 'none';
+  document.getElementById('loadMoreWrap').style.display  = 'none';
   updateActionBar();
 }
 
@@ -709,34 +784,77 @@ function renderAuthUI() {
 // API CALLS（GASプロキシ経由）
 // ═══════════════════════════════════════════════════
 
-async function apiGet(manageNumber) {
-  const url = APP_CONFIG.GAS_AUTH_URL
-    + '?token=' + encodeURIComponent(APP_CONFIG.ACCESS_TOKEN)
-    + '&action=get'
-    + '&ss='    + encodeURIComponent(authState.serviceSecret)
-    + '&lk='    + encodeURIComponent(authState.licenseKey)
-    + '&mn='    + encodeURIComponent(manageNumber);
-  
+function gasUrl(extraParams) {
+  const params = [
+    'token=' + encodeURIComponent(APP_CONFIG.ACCESS_TOKEN),
+    'ss='    + encodeURIComponent(authState.serviceSecret),
+    'lk='    + encodeURIComponent(authState.licenseKey),
+  ];
+  for (const [k, v] of Object.entries(extraParams)) {
+    params.push(k + '=' + encodeURIComponent(v));
+  }
+  return APP_CONFIG.GAS_AUTH_URL + '?' + params.join('&');
+}
+
+// ── items.search プロキシ ──
+//   field: 'title' | 'mn'
+async function apiSearch(field, query, hits, offset) {
+  const url = gasUrl({ action: 'search', field, q: query, hits, offset });
   const res = await fetch(url);
   return res.json();
 }
 
-async function apiPatch(manageNumber, socialGiftFlag) {
-  const url = APP_CONFIG.GAS_AUTH_URL
-    + '?token=' + encodeURIComponent(APP_CONFIG.ACCESS_TOKEN)
-    + '&action=patch'
-    + '&ss='    + encodeURIComponent(authState.serviceSecret)
-    + '&lk='    + encodeURIComponent(authState.licenseKey)
-    + '&mn='    + encodeURIComponent(manageNumber)
-    + '&sgf='   + (socialGiftFlag ? 'true' : 'false');
-  
+// ── items.bulk-get プロキシ（最大50件） ──
+async function apiBulkGet(manageNumbers) {
+  const url = gasUrl({ action: 'bulkget', mns: manageNumbers.join(',') });
   const res = await fetch(url);
   return res.json();
+}
+
+// ── items.patch プロキシ（1件） ──
+async function apiPatch(manageNumber, socialGiftFlag) {
+  const url = gasUrl({
+    action: 'patch',
+    mn: manageNumber,
+    sgf: socialGiftFlag ? 'true' : 'false'
+  });
+  const res = await fetch(url);
+  return res.json();
+}
+
+// ── ユーティリティ ──
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+// レート制限とみなす条件
+function isRateLimited(result) {
+  if (result && result.ok) return false;
+  if (result?.status === 429 || result?.status === 503) return true;
+  const msgs = [
+    result?.error || '',
+    result?.data?.errors?.[0]?.message || '',
+    result?.data?.errors?.[0]?.code    || ''
+  ].join(' ');
+  return /rate|limit|too many|上限|限度|回数/i.test(msgs);
 }
 
 // ═══════════════════════════════════════════════════
 // SEARCH
 // ═══════════════════════════════════════════════════
+
+// ── タブ切替 ──
+function switchSearchMode(mode) {
+  searchMode = mode;
+  document.getElementById('tabCode').classList.toggle('active',  mode === 'code');
+  document.getElementById('tabTitle').classList.toggle('active', mode === 'title');
+  const input = document.getElementById('searchInput');
+  if (mode === 'code') {
+    input.placeholder = '商品管理番号（カンマ区切り、完全一致）';
+  } else {
+    input.placeholder = '商品名（部分一致）';
+  }
+  input.focus();
+}
+
 async function handleSearch() {
   if (!authState.loggedIn) {
     showToast('ログインが必要です', 'まず認証パネルでログインしてください', 'error');
@@ -748,49 +866,125 @@ async function handleSearch() {
 
   list.innerHTML = '<div class="state-msg"><span class="spinner"></span> 検索中…</div>';
   document.getElementById('resultsHeader').style.display = 'none';
+  document.getElementById('loadMoreWrap').style.display  = 'none';
 
   if (query === '') {
     list.innerHTML = `
       <div class="state-msg">
         <div class="emoji">💡</div>
-        <strong>全商品一覧の取得には管理番号が必要です</strong><br>
+        <strong>検索キーワードを入力してください</strong><br>
         <span style="font-size:12px; color:var(--text-muted); margin-top:4px; display:inline-block;">
-          楽天 ItemAPI 2.0には「全件取得」エンドポイントがないため、<br>
-          GASのシートから商品管理番号をカンマ区切りで貼り込んでください。<br>
-          例：<code style="color:var(--accent)">item001,item002,item003</code>
+          ${searchMode === 'code'
+            ? '商品管理番号をカンマ区切りで入力（例：<code style="color:var(--accent)">item001,item002</code>）'
+            : '商品名の一部を入力（部分一致で検索します）'}
         </span>
       </div>`;
     return;
   }
 
-  // カンマ区切りで複数対応
-  const manageNumbers = query.split(',').map(s => s.trim()).filter(Boolean);
   items = [];
+  searchState = { mode: searchMode, query, offset: 0, numFound: 0, hasMore: false };
 
-  for (const mn of manageNumbers) {
-    try {
-      const result = await apiGet(mn);
-      
-      if (result.ok && result.data) {
-        const data = result.data;
-        const flag = data.features?.socialGiftFlag ?? false;
-        items.push({
-          manageNumber: data.manageNumber,
-          title:        data.title || '(商品名なし)',
-          original:     flag,
-          current:      flag
-        });
-        addLog('info', `GET ${mn} → socialGiftFlag: ${flag}`);
-      } else {
-        const errMsg = result.data?.errors?.[0]?.message || result.error || 'エラー';
-        addLog('err', `GET ${mn} → ${result.status || ''} ${errMsg}`);
-      }
-    } catch (e) {
-      addLog('err', `GET ${mn} → ネットワークエラー`);
-    }
+  if (searchMode === 'code') {
+    // コードモード: search を経由せず bulk-get に直行
+    const allMns = query.split(',').map(s => s.trim()).filter(Boolean);
+    searchState.numFound = allMns.length;
+    await fetchByBulkGet(allMns);
+  } else {
+    // 商品名モード: search → bulk-get
+    await fetchByTitle();
   }
 
   renderList();
+  renderLoadMore();
+}
+
+// ── bulk-get でまとめて取得（50件ずつバッチ）──
+async function fetchByBulkGet(manageNumbers) {
+  for (let i = 0; i < manageNumbers.length; i += BULK_GET_MAX) {
+    const batch = manageNumbers.slice(i, i + BULK_GET_MAX);
+    try {
+      const result = await apiBulkGet(batch);
+      if (result.ok && result.data?.items) {
+        for (const it of result.data.items) {
+          const flag = it.features?.socialGiftFlag ?? false;
+          items.push({
+            manageNumber: it.manageNumber,
+            title:        it.title || '(商品名なし)',
+            original:     flag,
+            current:      flag
+          });
+        }
+        addLog('info', `BULK-GET ${batch.length} 件 → ${result.data.items.length} 件取得`);
+        // バッチ間で取得できなかった mn を警告
+        const got = new Set(result.data.items.map(x => x.manageNumber));
+        const missing = batch.filter(x => !got.has(x));
+        if (missing.length) {
+          addLog('err', `見つからなかった商品: ${missing.join(', ')}`);
+        }
+      } else {
+        const errMsg = result.data?.errors?.[0]?.message || result.error || 'エラー';
+        addLog('err', `BULK-GET 失敗 → ${result.status || ''} ${errMsg}`);
+      }
+    } catch (e) {
+      addLog('err', `BULK-GET → ネットワークエラー (${e.message || e})`);
+    }
+  }
+}
+
+// ── 商品名検索: search で manageNumber 群を取り、bulk-get で本体取得 ──
+async function fetchByTitle() {
+  let searchRes;
+  try {
+    searchRes = await apiSearch('title', searchState.query, PAGE_SIZE, searchState.offset);
+  } catch (e) {
+    addLog('err', `SEARCH → ネットワークエラー (${e.message || e})`);
+    return;
+  }
+  if (!searchRes.ok) {
+    const errMsg = searchRes.data?.errors?.[0]?.message || searchRes.error || 'エラー';
+    addLog('err', `SEARCH 失敗 → ${searchRes.status || ''} ${errMsg}`);
+    return;
+  }
+  const data = searchRes.data || {};
+  const mns  = Array.isArray(data.manageNumbers) ? data.manageNumbers : [];
+  searchState.numFound = data.numFound ?? mns.length;
+  searchState.offset  += mns.length;
+  searchState.hasMore  = mns.length > 0
+                         && searchState.offset < searchState.numFound
+                         && searchState.offset < 9999;
+
+  addLog('info', `SEARCH "${searchState.query}" → ${mns.length} 件 / 全 ${searchState.numFound} 件`);
+
+  if (mns.length > 0) {
+    await fetchByBulkGet(mns);
+  }
+}
+
+// ── 「もっと読み込む」: title モード時のみ有効 ──
+async function loadMore() {
+  if (!searchState.hasMore) return;
+  const btn = document.getElementById('btnLoadMore');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 読み込み中…';
+  await fetchByTitle();
+  renderList();
+  renderLoadMore();
+  btn.disabled = false;
+  btn.innerHTML = 'もっと読み込む';
+}
+
+function renderLoadMore() {
+  const wrap = document.getElementById('loadMoreWrap');
+  const info = document.getElementById('loadMoreInfo');
+  const btn  = document.getElementById('btnLoadMore');
+  if (searchState.mode === 'title' && searchState.numFound > 0) {
+    wrap.style.display = 'block';
+    info.textContent = `${items.length} / ${searchState.numFound} 件 表示中`;
+    btn.style.display = searchState.hasMore ? 'inline-flex' : 'none';
+  } else {
+    wrap.style.display = 'none';
+  }
 }
 
 // ═══════════════════════════════════════════════════
@@ -872,7 +1066,7 @@ function revertChanges() {
 }
 
 // ═══════════════════════════════════════════════════
-// APPLY (PATCH)
+// APPLY (PATCH) — スロットリング + 自動リトライ
 // ═══════════════════════════════════════════════════
 async function applyChanges() {
   if (!authState.loggedIn) {
@@ -889,32 +1083,77 @@ async function applyChanges() {
   }
 
   const btn = document.getElementById('btnUpdate');
+  const total = toUpdate.length;
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> 更新中…';
+
+  // 「元に戻す」ボタンも処理中は無効化
+  const revertBtn = document.querySelector('.action-bar .btn-ghost');
+  if (revertBtn) revertBtn.disabled = true;
+
+  const setProgress = (done, note) => {
+    btn.innerHTML = `<span class="spinner"></span> 更新中… ${done}/${total}${note ? ` (${note})` : ''}`;
+  };
+  setProgress(0);
 
   let success = 0, fail = 0;
 
-  for (const item of toUpdate) {
-    try {
-      const result = await apiPatch(item.manageNumber, item.current);
+  for (let i = 0; i < toUpdate.length; i++) {
+    const item = toUpdate[i];
+    let lastErr = null;
+    let done = false;
+
+    for (let attempt = 0; attempt <= PATCH_MAX_RETRY; attempt++) {
+      let result;
+      try {
+        result = await apiPatch(item.manageNumber, item.current);
+      } catch (e) {
+        lastErr = `ネットワークエラー (${e.message || e})`;
+        break;
+      }
 
       if (result.ok) {
         item.original = item.current;
         success++;
-        addLog('ok', `PATCH ${item.manageNumber} → socialGiftFlag: ${item.current}`);
-      } else {
-        const errMsg = result.data?.errors?.[0]?.message || result.error || 'エラー';
-        fail++;
-        addLog('err', `PATCH ${item.manageNumber} → ${result.status || ''} ${errMsg}`);
+        addLog('ok', `PATCH ${item.manageNumber} → socialGiftFlag: ${item.current}${attempt > 0 ? ` (リトライ${attempt}回)` : ''}`);
+        done = true;
+        break;
       }
-    } catch (e) {
+
+      // レート制限なら指数バックオフ後リトライ
+      if (isRateLimited(result) && attempt < PATCH_MAX_RETRY) {
+        const wait = PATCH_BACKOFF_BASE * Math.pow(2, attempt);  // 5s, 10s, 20s
+        addLog('info', `PATCH ${item.manageNumber} → レート制限を検出、${wait/1000}s 待機後にリトライ (${attempt + 1}/${PATCH_MAX_RETRY})`);
+        setProgress(success + fail, `待機 ${wait/1000}s`);
+        await sleep(wait);
+        continue;
+      }
+
+      lastErr = (result.data?.errors?.[0]?.message || result.error || 'エラー');
+      addLog('err', `PATCH ${item.manageNumber} → ${result.status || ''} ${lastErr}`);
+      break;
+    }
+
+    if (!done) {
       fail++;
-      addLog('err', `PATCH ${item.manageNumber} → ネットワークエラー`);
+      if (lastErr && !lastErr.includes('PATCH')) {
+        // 上で addLog 済みのケースを除き、ネットワークエラー等を記録
+        if (lastErr.includes('ネットワーク')) {
+          addLog('err', `PATCH ${item.manageNumber} → ${lastErr}`);
+        }
+      }
+    }
+
+    setProgress(success + fail);
+
+    // 次のリクエストとの間隔（最後の1件は待機不要）
+    if (i < toUpdate.length - 1) {
+      await sleep(PATCH_INTERVAL_MS);
     }
   }
 
   btn.disabled = false;
   btn.innerHTML = '変更を適用';
+  if (revertBtn) revertBtn.disabled = false;
   renderList();
 
   if (fail === 0) {
